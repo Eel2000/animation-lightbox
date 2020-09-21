@@ -1,0 +1,151 @@
+﻿@page "/canvas"
+@inject IJSRuntime JSRuntime;
+<h3>Canvas</h3>
+
+<div height="@height" width="@width" class="canvas-wrapper">
+    <canvas height="@height" width="@width" id="prev2-canvas"></canvas>
+    <canvas height="@height" width="@width" id="prev-canvas"></canvas>
+    <canvas height="@height" width="@width" id="@_id" 
+    @onmousedown="OnMouseDownCanvas" @onmousemove="OnMouseMoveCanvas" @onmouseup="OnMouseUpCanvas" 
+    @ontouchstart="OnTouchStartCanvas" @ontouchmove="OnTouchMoveCanvas" @ontouchend="OnTouchEndCanvas"></canvas>
+</div>
+<div class="canvas-controller">
+    <p>@_text</p>
+    <button class="btn btn-primary" @onclick="CreateNewFrame">New Frame</button>
+    <button class="btn btn-primary" @onclick="StartAnimation">Start Animation</button>
+    <button class="btn btn-danger" @onclick="StopAnimation">Stop Animation</button>
+    <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
+        <div class="btn-group mr-2" role="group" aria-label="First group">
+            @for(var i=1;i<=_saveCount;i++)
+            {
+                var number = i;
+                <button type="button" class="btn btn-secondary" @key="number" @onclick="() => OnClickNumberButton(number-1)">@i</button>
+            }
+        </div>
+    </div>
+</div>
+@code {
+    int height = 700;
+    int width = 700;
+    string _text = "";
+    string _id = Guid.NewGuid().ToString();
+
+    int _saveCount = 1;
+    int _currentFrame = 0;
+
+    bool _isDraw = false;
+
+    (double X,double Y) _point = (0,0);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if(firstRender) {
+            await JSRuntime.InvokeVoidAsync("setCanvasElement",_id);
+            _point = await GetStartPosition();
+            //Console.WriteLine($"{p[0]},{p[1]}");
+        }
+    }
+    
+    private async Task OnMouseDownCanvas(MouseEventArgs e)
+    {
+        await DrawStart(e.ClientX,e.ClientY );
+    }
+
+    private async Task OnMouseMoveCanvas(MouseEventArgs e)
+    {
+        await DrawLine(e.ClientX,e.ClientY);
+        _text = $"({e.ClientX - _point.X}, {e.ClientY - _point.Y}) : {e.Buttons}";
+    }
+
+    private async Task OnMouseUpCanvas(MouseEventArgs e)
+    {
+        await DrawEnd(e.ClientX, e.ClientY);
+    }
+
+    private async Task OnTouchStartCanvas(TouchEventArgs e)
+    {
+        var p = e.Touches[0];
+        await DrawStart(p.ClientX, p.ClientY);
+    }
+
+    private async Task OnTouchMoveCanvas(TouchEventArgs e)
+    {
+        var p = e.Touches[0];
+        await DrawLine(p.ClientX, p.ClientY);
+    }
+    
+    private async Task OnTouchEndCanvas(TouchEventArgs e)
+    {
+        if(e.Touches.Length > 0)
+        {
+            var p = e.Touches[0];
+            await DrawEnd(p.ClientX, p.ClientY);
+        }
+    }
+
+    private async Task OnClickNumberButton(int n)
+    {
+        Console.WriteLine($"Current Frame:{_currentFrame}, Number of frame:{_saveCount}");
+        await SaveImageData();
+        await SetImageData(n);
+        _currentFrame = n;
+    }
+
+    private async Task CreateNewFrame()
+    {
+        _saveCount = await JSRuntime.InvokeAsync<int>("createNewFrame",_currentFrame);
+        _currentFrame = _saveCount-1;
+        Console.WriteLine($"Current Frame:{_currentFrame}, Number of frame:{_saveCount}");
+    }
+
+    private async Task SaveImageData()
+    {
+        _saveCount = await JSRuntime.InvokeAsync<int>("saveImageData",_currentFrame);
+    }
+
+    private async Task SetImageData(int n)
+    {
+        await JSRuntime.InvokeVoidAsync("setImageData",n);
+    }
+    
+    private async Task<(double X,double Y)> GetStartPosition()
+    {
+        var p = await JSRuntime.InvokeAsync<double[]>("getCanvasPosition");
+        return (p[0],p[1]);
+    }
+
+    private async Task DrawStart(double x, double y)
+    {
+        _isDraw = true;
+        var p = await GetStartPosition();
+        await JSRuntime.InvokeVoidAsync("drawStart",x - p.X, y - p.Y);
+    }
+
+    private async Task DrawLine(double x, double y)
+    {
+        if(_isDraw)
+        { 
+            var p = await GetStartPosition();
+            await JSRuntime.InvokeVoidAsync("drawLine", x -p.X,y-p.Y);
+        }
+    }
+
+    private async Task DrawEnd(double x, double y)
+    {
+        if(_isDraw)
+        { 
+            _isDraw = false;
+            var p = await GetStartPosition();
+            await JSRuntime.InvokeVoidAsync("drawEnd", x - p.X,y - p.Y);
+        }
+    }
+    private int _intervalId;
+    private async Task StartAnimation()
+    {
+        _intervalId = await JSRuntime.InvokeAsync<int>("startAnimation");
+    }
+    private async Task StopAnimation()
+    {
+        _currentFrame = await JSRuntime.InvokeAsync<int>("stopAnimation",_intervalId);
+    }
+}

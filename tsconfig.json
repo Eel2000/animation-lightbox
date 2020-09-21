@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "noImplicitAny": true,
+    "noEmitOnError": true,
+    "removeComments": true,
+    "sourceMap": true,
+    "target": "ES6",
+    "outDir": "./wwwroot/scripts"
+  },
+  "exclude": [
+    "node_modules",
+    "wwwroot"
+  ],
+  "files": ["./blazor.canvas.ts"],
+  "compileOnSave": true,
+}
