@@ -3,3 +3,5 @@
 .vscode
 bin
 obj
+wwwroot/scripts/*.js
+wwwroot/scripts/*.map
