@@ -9,6 +9,5 @@
 }
 
 .canvas-controller{
-    bottom: 50px;
-    position: absolute;
+    position: relative;
 }

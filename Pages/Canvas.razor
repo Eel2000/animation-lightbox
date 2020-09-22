@@ -1,20 +1,21 @@
-﻿@page "/canvas"
+﻿@page "/"
 @inject IJSRuntime JSRuntime;
-<h3>Canvas</h3>
+<h3 class="text-white">Canvas</h3>
 
-<div height="@height" width="@width" class="canvas-wrapper">
-    <canvas height="@height" width="@width" id="prev2-canvas"></canvas>
-    <canvas height="@height" width="@width" id="prev-canvas"></canvas>
+<div style="@_wrapperStyle" class="canvas-wrapper bg-white mx-auto">
+    <canvas height="@height" width="@width" id="@_id-prev2"></canvas>
+    <canvas height="@height" width="@width" id="@_id-prev"></canvas>
     <canvas height="@height" width="@width" id="@_id" 
     @onmousedown="OnMouseDownCanvas" @onmousemove="OnMouseMoveCanvas" @onmouseup="OnMouseUpCanvas" 
     @ontouchstart="OnTouchStartCanvas" @ontouchmove="OnTouchMoveCanvas" @ontouchend="OnTouchEndCanvas"></canvas>
 </div>
-<div class="canvas-controller">
-    <p>@_text</p>
-    <button class="btn btn-primary" @onclick="CreateNewFrame">New Frame</button>
-    <button class="btn btn-primary" @onclick="StartAnimation">Start Animation</button>
-    <button class="btn btn-danger" @onclick="StopAnimation">Stop Animation</button>
-    <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
+<div class="canvas-controller mx-auto" style="@_controllerStyle">
+    <p class="text-white">@_text</p>
+    <button class="btn btn-primary" @onclick="CreateNewFrame" disabled="@_play">Add</button>
+    <button class="btn btn-secondary" @onclick="ClearCanvas" disabled="@_play">Clear</button>
+    <button class="btn btn-primary" @onclick="StartAnimation" disabled="@_play">Play</button>
+    <button class="btn btn-danger" @onclick="StopAnimation" disabled="@(!_play)">Stop</button>
+    <div class="btn-toolbar mt-2" role="toolbar" aria-label="Toolbar with button groups">
         <div class="btn-group mr-2" role="group" aria-label="First group">
             @for(var i=1;i<=_saveCount;i++)
             {
@@ -25,8 +26,10 @@
     </div>
 </div>
 @code {
-    int height = 700;
-    int width = 700;
+    int height = 720;
+    int width = 1280;
+    string _wrapperStyle = "";
+    string _controllerStyle = "";
     string _text = "";
     string _id = Guid.NewGuid().ToString();
 
@@ -35,8 +38,16 @@
 
     bool _isDraw = false;
 
+    bool _play = false;
+
     (double X,double Y) _point = (0,0);
 
+    protected override async Task OnInitializedAsync()
+    {
+        _wrapperStyle = $"height: {height}px; width: {width}px;";
+        _controllerStyle  = $"width: {width}px;";
+        await base.OnInitializedAsync();
+    }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if(firstRender) {
@@ -142,10 +153,19 @@
     private int _intervalId;
     private async Task StartAnimation()
     {
+        _play = true;
+        await SaveImageData();
         _intervalId = await JSRuntime.InvokeAsync<int>("startAnimation");
     }
     private async Task StopAnimation()
     {
+        _play = false;
         _currentFrame = await JSRuntime.InvokeAsync<int>("stopAnimation",_intervalId);
     }
+
+    private async Task ClearCanvas()
+    {
+        await JSRuntime.InvokeVoidAsync("clearCanvas");
+    }
+
 }
