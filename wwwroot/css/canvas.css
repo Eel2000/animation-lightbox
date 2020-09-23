@@ -6,8 +6,17 @@
     top: 0;
     left: 0;
     position: absolute;
+    outline: none;
 }
 
 .canvas-controller{
     position: relative;
+}
+
+.canvas-controller-btn{
+    display: flex;
+}
+
+.onionskins-controller{
+    display: flex;
 }
