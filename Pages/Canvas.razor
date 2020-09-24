@@ -1,46 +1,29 @@
 ﻿@page "/"
 @inherits BlazorCanvas.Shared.CanvasComponentBase
-<div style="width: @(width)px; height: @(height)px;" class="canvas-wrapper bg-white mx-auto">
-    <canvas height="@height" width="@width" id="@_id-prev2"></canvas>
-    <canvas height="@height" width="@width" id="@(_id + _onionSkinsIdSuffix)"></canvas>
-    <canvas height="@height" width="@width" id="@_id" 
-    @onmousedown="OnMouseDownCanvas" @onmousemove="OnMouseMoveCanvas" @onmouseup="OnMouseUpCanvas" @onmouseout="OnMouseOutCanvas"
-    @ontouchstart="OnTouchStartCanvas" @ontouchmove="OnTouchMoveCanvas" @ontouchend="OnTouchEndCanvas"
-    @onkeydown="OnKeyDown" tabindex="0"></canvas>
-</div>
-<div class="canvas-controller mx-auto" style="width: @(width)px;">
-    <p class="text-white mb-1">@_text</p>
-    <button class="btn btn-primary" @onclick="OnAddButtonClicked" disabled="@_play">Add</button>
-    <button class="btn btn-secondary" @onclick="OnUndoButtonClicked" disabled="@_play">Undo</button>
-    <button class="btn btn-secondary" @onclick="OnClearButtonClicked" disabled="@_play">Clear</button>
-    <button class="btn btn-primary" @onclick="OnPlayButtonClicked" disabled="@_play">Play</button>
-    <button class="btn btn-danger" @onclick="OnStopButtonClicked" disabled="@(!_play)">Stop</button>
-    <div class="btn-toolbar mt-2 d-inline" role="toolbar" aria-label="Toolbar with button groups">
-        <div class="btn-group mr-2" role="group" aria-label="First group">
-            @for(var i=1;i<=_numberOfFrames;i++)
-            {
-                var number = i;
-                <button type="button" class="btn btn-secondary" @key="number" @onclick="() => OnClickNumberButton(number-1)">@i</button>
-            }
-        </div>
+
+<div class="canvas-sidebar"></div>
+<div class="canvas-main">
+    <div style="width: @(width)px; height: @(height)px;" class="canvas-wrapper bg-white mt-5 mx-auto">
+        <canvas height="@height" width="@width" id="@(_id + _onionSkinsIdSuffix)"></canvas>
+        <canvas height="@height" width="@width" id="@_id" 
+        @onmousedown="OnMouseDownCanvas" @onmousemove="OnMouseMoveCanvas" @onmouseup="OnMouseUpCanvas" @onmouseout="OnMouseOutCanvas"
+        @ontouchstart="OnTouchStartCanvas" @ontouchmove="OnTouchMoveCanvas" @ontouchend="OnTouchEndCanvas"
+        @onkeydown="OnKeyDown" tabindex="0"></canvas>
     </div>
-    <div class="onionskins-controller">
-        <input type="number" class="form-control" id="number-of-onionskins" min="0" max="10" value="5" style="width: 100px;" @oninput="OnOnionSkinsNumberChanged">
+
+    <div class="canvas-controller mx-auto" style="width: @(width)px;" >
+        <CanvasControl Message="@_text"/>
     </div>
 </div>
+
 @code {
-    int height = 810;
-    int width = 1440;
+    int height = 720;
+    int width = 1280;
     string _text = "";
     private readonly string _id = Guid.NewGuid().ToString();
     private readonly string _onionSkinsIdSuffix = "-onion-skins";
 
-    int _numberOfFrames = 1;
-    int _currentFrame = 0;
-
     bool _isDrawing = false;
-
-    bool _play = false;
 
     (double X,double Y) _point = (0,0);
 
@@ -54,7 +37,6 @@
         {
             await InitializeCanvas(_id,_onionSkinsIdSuffix);
             _point = await GetStartPosition();
-            //Console.WriteLine($"{p[0]},{p[1]}");
         }
         await base.OnInitializedAsync();
     }
@@ -77,7 +59,6 @@
 
     private async Task OnMouseOutCanvas(MouseEventArgs e)
     {
-        //Console.WriteLine($"onmouseout fired {e.Button}");
         await OnDrawEnd(e.ClientX, e.ClientY);
     }
 #endregion
@@ -105,7 +86,6 @@
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
-        Console.WriteLine($"{e.Key} pushed. Code: {e.Code} Ctrl: {e.CtrlKey}");
         switch(e.Code)
         {
             case "KeyZ" : 
@@ -116,30 +96,6 @@
                 if(e.CtrlKey) await Redo();
                 break;
         };
-    }
-
-    private async Task OnClickNumberButton(int n)
-    {
-        //Console.WriteLine($"Current frame:{_currentFrame} Input number: {n}");
-        await SaveFrame(_currentFrame);
-        await SetCurrentFrameNumber(n);
-        _currentFrame = n;
-    }
-
-    private async Task OnOnionSkinsNumberChanged(ChangeEventArgs e)
-    {
-        if(int.TryParse(e.Value.ToString(), out int num))
-            await SetOnionSkinsPrevFrameCount(num);    
-    }
-
-    private async Task OnAddButtonClicked()
-    {
-        await SaveFrame(_currentFrame);
-        await AddNewFrame();
-        await ClearCanvas();
-        await SetCurrentFrameNumber(_numberOfFrames);
-        _currentFrame = _numberOfFrames;
-        _numberOfFrames++;
     }
 
     private async Task OnDrawStart(double x, double y)
@@ -161,27 +117,5 @@
             await DrawLine(x,y);
         }
         _isDrawing = false;
-    }
-
-    private async Task OnPlayButtonClicked()
-    {
-        _play = true;
-        await SaveFrame(_currentFrame);
-        await StartAnimation();
-    }
-    private async Task OnStopButtonClicked()
-    {
-        _play = false;
-        await StopAnimation();
-    }
-
-    private async Task OnClearButtonClicked()
-    {
-        await ClearCanvas();
-    }
-
-    private async Task OnUndoButtonClicked()
-    {
-        await Undo();
     }
 }

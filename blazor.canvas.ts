@@ -3,14 +3,14 @@
     public g: number = 0;
     public b: number = 0;
     public alpha: number = 1.0;
-    constructor (r:number, g:number, b:number, alpha:number = 255){
+    constructor (r:number, g:number, b:number, alpha:number = 1){
         this.r = r;
         this.g = g;
         this.b = b;
         this.alpha = alpha;
     }
-    public toString = () : string => {
-        return `rgba(${this.r},${this.g},${this.b},${this.alpha})`
+    public toString(){
+        return `rgba(${this.r},${this.g},${this.b},${this.alpha})`;
     } 
 }
 
@@ -27,7 +27,8 @@ class Point2D {
 }
 
 class Frame {
-    public image :ImageData;
+    public image : ImageData;
+    public layer : ImageData[] = [];
     public prevHistory : ImageData[] = [];
     public nextHistory : ImageData[] = [];
 
@@ -41,16 +42,20 @@ class Canvas {
     protected id : string;
     protected context : CanvasRenderingContext2D
     public color : Color;
+    public scaleRate : number = 0.8;
 
-    get width() :number {return this.element.width;}
-    get height() : number {return this.element.height;}
+    get width() :number {return this.element.width / this.scaleRate;}
+    get height() : number {return this.element.height / this.scaleRate;}
 
-    public constructor (id :string,color:Color = new Color(0,0,0))
+    public constructor (id :string, color:Color = new Color(0,0,0), scaleRate :number = 1)
     {
         this.id = id;
         this.element = document.getElementById(id) as HTMLCanvasElement;
-        this.context = this.element.getContext(`2d`);
+        this.context = this.element.getContext(`2d`) as CanvasRenderingContext2D;
+        this.context.lineCap = "round";
         this.color = color;
+        this.scaleRate = scaleRate;
+        this.context.scale(this.scaleRate,this.scaleRate);
     }
 
     /**
@@ -68,19 +73,55 @@ class Canvas {
         return this.context.putImageData(img,0,0);
     }
 
+    private prevX :number;
+    private prevY :number;
     public drawLineWithPen(x:number, y:number, isDrawing:boolean){
+        let scaledX = x/this.scaleRate;
+        let scaledY = y/this.scaleRate;
         if(!isDrawing) {
             this.context.beginPath();
-            this.context.moveTo(x,y);
+            this.context.moveTo(scaledX,scaledY);
         } else {
-            this.context.lineTo(x,y);
-            this.context.stroke();
+            let div = 200;
+            let dx = (scaledX - this.prevX) / div;
+            let dy = (scaledY - this.prevY) / div;
+            let r = this.context.lineWidth/2;
+            let dtheta = Math.PI / (90 * div);
+            for(let i = 0; i<=div; i++)
+            {
+                let x = this.prevX + dx*i;
+                let y = this.prevY + dy*i;
+                this.context.beginPath();
+                this.context.moveTo(x,y);
+                this.context.arc(x,y, r, 0, 2 * Math.PI, false);
+                this.context.stroke();
+                this.context.fill();
+                this.context.closePath();
+            }
+            // this.context.lineTo(scaledX,scaledY);
+            // this.context.stroke();   
         }
+        this.prevX = scaledX;
+        this.prevY = scaledY;
     }
+
 
     public getCanvasPosition(){
         let rect = this.element.getBoundingClientRect();
         return new Point2D(rect.left,rect.top);
+    }
+
+    public setEraser(width:number){
+        this.context.globalCompositeOperation = "destination-out";
+        this.setPenStyle(width, new Color(0,0,0,1), true);
+    }
+
+    public setPenStyle(width:number, color:Color, isEraser: boolean = false) {
+        //console.log(`${width}, rgba(${color.r},${color.g},${color.b},${color.alpha})`)
+        if(!isEraser) this.context.globalCompositeOperation = "source-over";
+        this.context.lineWidth = width*this.scaleRate;
+        this.context.strokeStyle = `rgba(${color.r},${color.g},${color.b},${color.alpha})`;
+        this.context.fillStyle = this.context.strokeStyle;
     }
 }
 
@@ -129,9 +170,9 @@ class MainCanvas extends Canvas {
     get currentFrame() { return this.frames[this.currentFrameNumber];}
 
     // constructor
-    public constructor (id :string, onionSkinsIdSuffix :string, color = new Color(0, 0, 0)){
-        super(id,color);
-        this.onionSkins = new this.OnionSkins(`${id}${onionSkinsIdSuffix}`);
+    public constructor (id :string, onionSkinsIdSuffix :string, scaleRate : number = 1,color = new Color(0, 0, 0)){
+        super(id,color,scaleRate);
+        this.onionSkins = new this.OnionSkins(`${id}${onionSkinsIdSuffix}`,color,scaleRate);
         this.frames.push(new Frame(this.getImageData()));
         //this.frames[0].prevHistory.push(this.getImageData());
     }
@@ -143,8 +184,7 @@ class MainCanvas extends Canvas {
 
     public undo(){
         if(this.currentFrame.prevHistory.length > 0) {
-            console.log(`Undo`);
-            let prev = this.currentFrame.prevHistory.pop();
+            let prev = this.currentFrame.prevHistory.pop() ?? new ImageData(this.width,this.height) ;
             this.currentFrame.nextHistory.push(this.getImageData());
             this.putImageData(prev);      
         }
@@ -152,8 +192,7 @@ class MainCanvas extends Canvas {
 
     public redo(){
         if(this.currentFrame.nextHistory.length > 0){
-            console.log(`Redo`);
-            let next = this.currentFrame.nextHistory.pop();
+            let next = this.currentFrame.nextHistory.pop() ?? new ImageData(this.width,this.height);
             this.currentFrame.prevHistory.push(this.getImageData());
             this.putImageData(next);
         }
@@ -212,8 +251,8 @@ class MainCanvas extends Canvas {
         public previousFrameColor : Color = new Color(255,0,255);
         public nextFrameColor : Color = new Color(0,255,255)
 
-        public previousFrameCount : number = 5;
-        public nextFrameCount : number = 5;
+        public previousFrameCount : number = 3;
+        public nextFrameCount : number = 3;
 
         public setOnionSkins(frames: ImageData[]){
             this.clear();
@@ -230,7 +269,6 @@ class MainCanvas extends Canvas {
         }
 
         private setOnionSkinsInternal(start:number, end:number, color:Color, frames: ImageData[], isPrev:boolean){
-            //console.log(`${start} to ${end}. Number of frames is ${frames.length}.`);
             let startNum = Math.max(start, 0);
             let endNum = Math.min(end,frames.length);
             for(let i= startNum; i< endNum; i++) {
@@ -247,7 +285,8 @@ class MainCanvas extends Canvas {
                 }
                 window.createImageBitmap(imageData).then(
                     (img) => {
-                        this.context.drawImage(img,0,0);
+                        // scale()で設定した倍率分、imageがさらに縮小されるので、倍率で割る？
+                        this.context.drawImage(img,0,0,this.width/this.scaleRate,this.height/this.scaleRate);
                     }
                 ).catch(() => {
                     console.log(`${i} Error`)});
@@ -256,6 +295,7 @@ class MainCanvas extends Canvas {
     }
 }
 
+// ------ For JSInterop ------
 let mainCanvas: MainCanvas;
 
 /**
@@ -263,7 +303,7 @@ let mainCanvas: MainCanvas;
  * @param id id of the main <canvas> element 
  */
 function initializeCanvasElements(id: string, onionSkinsSuffix: string) {
-    mainCanvas = new MainCanvas(id, onionSkinsSuffix );
+    mainCanvas = new MainCanvas(id, onionSkinsSuffix,1/1.5);
 }
 
 function getCanvasPosition(){
@@ -272,6 +312,14 @@ function getCanvasPosition(){
 
 function clearMainCanvas(){
     mainCanvas.clear();
+}
+
+function setEraser(w:number){
+    mainCanvas.setEraser(w);
+}
+
+function setPenStyle(w:number,color: Color){
+    mainCanvas.setPenStyle(w,color);
 }
 
 function drawStart(x:number,y:number){
@@ -330,4 +378,5 @@ function stopAnimation(intervalId :number){
     console.log(`Stop Animation`);
     window.clearInterval(intervalId);
     mainCanvas.putImageData(mainCanvas.currentFrame.image);
+    mainCanvas.setOnionSkins();
 }

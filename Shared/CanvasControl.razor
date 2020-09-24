@@ -1,0 +1,109 @@
+@inherits CanvasComponentBase
+    <p class="text-white mb-1">@Message</p>
+    <div class="canvas-controller-btn">
+        <input type="color" class="form-control" id="pen-color" style="width: 50px;" @oninput="OnColorChanged">
+        <input type="number" class="form-control" id="pen-size" min="0.1" max="100" value="@_penSize" style="width: 85px;" @oninput="OnPenWSizeChanged">
+        <button class="btn btn-secondary" @onclick="OnEraserButtonClicked" disabled="@_play">Eraser</button>
+        <button class="btn btn-secondary" @onclick="OnUndoButtonClicked" disabled="@_play"><span class="oi oi-action-undo" ></span></button>
+        <button class="btn btn-secondary" @onclick="OnRedoButtonClicked" disabled="@_play"><span class="oi oi-action-redo" ></span></button>
+        <button class="btn btn-secondary" @onclick="OnClearButtonClicked" disabled="@_play">Clear</button>
+        <button class="btn btn-primary" @onclick="OnPlayButtonClicked" disabled="@_play"><span class="oi oi-media-play"></span></button>
+        <button class="btn btn-danger" @onclick="OnStopButtonClicked" disabled="@(!_play)"><span class="oi oi-media-stop"></span></button>
+        <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
+            <div class="btn-group mr-2" role="group" aria-label="First group">
+                <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                @for(var i=0; i<_numberOfFrames; i++)
+                {
+                    var n = i;
+                    <label class="btn btn-secondary @(n==_currentFrame ? "active" : "")">
+                        <input type="radio" name="options" id="@("option" + (i+1))" autocomplete="off" @key="(n+1)" @onclick="() => OnClickNumberButton(n)" checked="@(n==_currentFrame)" >@(n+1)
+                    </label>
+                }
+                </div>
+                <button type="button" class="btn btn-secondary" role="group" @onclick="OnAddButtonClicked" disabled="@_play"><span class="oi oi-plus"></span></button>
+            </div>
+            
+        </div>
+    </div>
+    <div class="onionskins-controller">
+        <input type="number" class="form-control" id="number-of-onionskins" min="0" max="10" value="5" style="width: 100px;" @oninput="OnOnionSkinsNumberChanged">
+    </div>
+@code {
+    [Parameter]
+    public string Message {get;set;}
+
+    int _numberOfFrames = 1;
+    int _currentFrame = 0;
+
+    bool _play = false;
+
+    double _penSize = 1;
+    Rgba _penColor = new Rgba();
+
+    private async Task OnEraserButtonClicked(MouseEventArgs e)
+    {
+        await SetEraser(_penSize);
+    }
+
+    private async Task OnPenWSizeChanged(ChangeEventArgs e)
+    {
+        if(double.TryParse(e.Value.ToString(),out _penSize))
+            await SetPenStyle(_penSize, _penColor);
+    }
+
+    private async Task OnColorChanged(ChangeEventArgs e)
+    {
+        _penColor = e.Value.ToString().TrimStart('#').ToByteArray().ToRgba();
+        await SetPenStyle(_penSize, _penColor); 
+    }
+
+    private async Task OnClickNumberButton(int n)
+    {
+        await SaveFrame(_currentFrame);
+        await SetCurrentFrameNumber(n);
+        _currentFrame = n;
+    }
+
+    private async Task OnOnionSkinsNumberChanged(ChangeEventArgs e)
+    {
+        if(int.TryParse(e.Value.ToString(), out int num))
+            await SetOnionSkinsPrevFrameCount(num);    
+    }
+
+    private async Task OnAddButtonClicked()
+    {
+        await SaveFrame(_currentFrame);
+        await AddNewFrame();
+        await ClearCanvas();
+        await SetCurrentFrameNumber(_numberOfFrames);
+        _currentFrame = _numberOfFrames;
+        _numberOfFrames++;
+    }
+
+    private async Task OnPlayButtonClicked()
+    {
+        _play = true;
+        await SaveFrame(_currentFrame);
+        await StartAnimation();
+    }
+    private async Task OnStopButtonClicked()
+    {
+        _play = false;
+        await StopAnimation();
+    }
+
+    private async Task OnClearButtonClicked()
+    {
+        await ClearCanvas();
+    }
+
+    private async Task OnUndoButtonClicked()
+    {
+        await Undo();
+    }
+
+    private async Task OnRedoButtonClicked()
+    {
+        await Redo();
+    }
+}
