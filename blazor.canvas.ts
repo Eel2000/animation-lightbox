@@ -182,6 +182,7 @@ class MainCanvas extends Canvas {
         super.drawLineWithPen(x,y,isDrawing);
     }
 
+    private _allowSaveCount = 50;
     public undo(){
         if(this.currentFrame.prevHistory.length > 0) {
             let prev = this.currentFrame.prevHistory.pop() ?? new ImageData(this.width,this.height) ;
@@ -200,6 +201,10 @@ class MainCanvas extends Canvas {
 
     public saveHistory(){
         this.currentFrame.prevHistory.push(this.getImageData());
+        if(this.currentFrame.prevHistory.length > this._allowSaveCount) {
+            // 許容する保存数を超えたら破棄する
+            this.currentFrame.prevHistory.shift();
+        }
             // 新しく履歴が追加された時、前方方向の履歴は削除する。
         this.currentFrame.nextHistory = [];
     }

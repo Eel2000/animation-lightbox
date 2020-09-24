@@ -6,6 +6,12 @@ using Microsoft.JSInterop;
 
 namespace BlazorCanvas.Shared
 {
+    public enum PenStyle
+    {
+        Normal,
+        Eraser
+    }
+    
     public class CanvasComponentBase : ComponentBase
     {
         [Inject]

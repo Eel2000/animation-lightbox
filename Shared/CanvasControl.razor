@@ -1,9 +1,17 @@
 @inherits CanvasComponentBase
     <p class="text-white mb-1">@Message</p>
     <div class="canvas-controller-btn">
-        <input type="color" class="form-control" id="pen-color" style="width: 50px;" @oninput="OnColorChanged">
-        <input type="number" class="form-control" id="pen-size" min="0.1" max="100" value="@_penSize" style="width: 85px;" @oninput="OnPenWSizeChanged">
-        <button class="btn btn-secondary" @onclick="OnEraserButtonClicked" disabled="@_play">Eraser</button>
+        <input type="color" class="form-control" id="pen-color" name="pen-color" style="width: 35px; padding:0.5vh;" @oninput="OnColorChanged">
+        <input type="number" class="form-control" id="pen-size" name="pen-size"
+        min="0.5" max="200" value="@_penSize" step="0.5" style="width: 85px;" @oninput="OnPenWSizeChanged">
+        <div class="btn-group btn-group-toggle" id="pen-group" data-toggle="buttons">
+            <label class="btn btn-primary @(_style == PenStyle.Normal ? "active" : "")">
+                <input type="radio" name="pens" id="normal-pen" autocomplete="off" disabled="@_play" checked @onclick="OnNormalPenButtonClicked"> <span class="oi oi-pencil"></span>
+            </label>
+            <label class="btn btn-secondary @(_style == PenStyle.Eraser ? "active" : "")">
+                <input type="radio" name="pens" id="eraser" autocomplete="off" disabled="@_play" @onclick="OnEraserButtonClicked"> Eraser
+            </label>
+        </div>
         <button class="btn btn-secondary" @onclick="OnUndoButtonClicked" disabled="@_play"><span class="oi oi-action-undo" ></span></button>
         <button class="btn btn-secondary" @onclick="OnRedoButtonClicked" disabled="@_play"><span class="oi oi-action-redo" ></span></button>
         <button class="btn btn-secondary" @onclick="OnClearButtonClicked" disabled="@_play">Clear</button>
@@ -16,7 +24,7 @@
                 {
                     var n = i;
                     <label class="btn btn-secondary @(n==_currentFrame ? "active" : "")">
-                        <input type="radio" name="options" id="@("option" + (i+1))" autocomplete="off" @key="(n+1)" @onclick="() => OnClickNumberButton(n)" checked="@(n==_currentFrame)" >@(n+1)
+                        <input type="radio" name="options" id="@("option" + (i+1))" autocomplete="off" @key="(n+1)" @onclick="() => OnClickNumberButton(n)" >@(n+1)
                     </label>
                 }
                 </div>
@@ -37,24 +45,55 @@
 
     bool _play = false;
 
-    double _penSize = 1;
+    double _penSize = 0.5;
     Rgba _penColor = new Rgba();
 
+    PenStyle _style = PenStyle.Normal;
+
+    private async Task OnNormalPenButtonClicked(MouseEventArgs e)
+    {
+        if(_style != PenStyle.Normal)
+        {
+            _style = PenStyle.Normal;
+            await SetPenStyle(_penSize, _penColor);
+        }    
+    }
     private async Task OnEraserButtonClicked(MouseEventArgs e)
     {
-        await SetEraser(_penSize);
+        if(_style != PenStyle.Eraser)
+        {
+            _style = PenStyle.Eraser;
+            await SetEraser(_penSize);
+        }
     }
 
     private async Task OnPenWSizeChanged(ChangeEventArgs e)
     {
         if(double.TryParse(e.Value.ToString(),out _penSize))
-            await SetPenStyle(_penSize, _penColor);
+        {
+            switch(_style)
+            {
+                case PenStyle.Normal:
+                    await SetPenStyle(_penSize, _penColor);
+                    break;
+                case PenStyle.Eraser:
+                    await SetEraser(_penSize);
+                    break;
+            }
+        }
     }
 
     private async Task OnColorChanged(ChangeEventArgs e)
     {
         _penColor = e.Value.ToString().TrimStart('#').ToByteArray().ToRgba();
-        await SetPenStyle(_penSize, _penColor); 
+        switch(_style)
+        {
+            case PenStyle.Normal:
+                await SetPenStyle(_penSize, _penColor);
+                break;
+            case PenStyle.Eraser:
+                break;
+        }
     }
 
     private async Task OnClickNumberButton(int n)
